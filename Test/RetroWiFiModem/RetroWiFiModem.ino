@@ -1,7 +1,3 @@
-#include <ESP_EEPROM.h>
-
-#include <ESP_EEPROM.h>
-
 //
 //   Retro WiFi modem: an ESP8266 based RS232<->WiFi modem
 //   with Hayes style AT commands and blinking LEDs.

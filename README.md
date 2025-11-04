@@ -162,6 +162,27 @@ modem. Even if the innards are completely different, it made sense to
 make it *work* like what people were already used to. There's a reason
 everyone's been copying the Hayes command set for almost 40 years!
 
+### Dependencies
+
+#### Select the correct board
+In the Arduino IDE:
+Go to Tools → Board → ESP8266 → ẀeMos D1 R1`
+This is important, otherwise ESP_EEPROM wont work.
+
+#### ESP8266 Board Manager in Arduino IDE
+In the Arduino IDE:
+Go to File → Preferences
+In the field “Additional Boards Manager URLs”, add: `https://arduino.esp8266.com/stable/package_esp8266com_index.json`
+Be sure to install Version `2.7.4`. It will work with 3.x.x but with errors.
+
+#### Select the correct ESP_EEPROM version
+In the Arduino IDE:
+Go to Sketch → Import Library → Manage Library
+In the search field search for: `ESP_EEPROM`
+Be sure to install Version `2.1.2`. With 2.2.x and higher, you will not be able to save your config. `AT&W` just errors out.
+
+#### 
+
 ### First time setup
 
 The default serial configuration is 9600bps, 8 data bits, no parity, 1
