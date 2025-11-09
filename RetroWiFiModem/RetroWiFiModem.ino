@@ -125,7 +125,7 @@ void setup(void) {
   Serial.println();
   Serial.println("=========================================");
   Serial.println("      RetroWiFiModem by Jerrec"           );
-  Serial.println("      (C) 2025 - ESP8266 Hayes Modem"     );
+  Serial.println("      2025 - ESP8266 Hayes Modem"         );
   Serial.println("=========================================");
   Serial.println();
 
