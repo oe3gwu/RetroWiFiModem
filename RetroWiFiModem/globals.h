@@ -10,7 +10,6 @@
    const char noAnswerStr[] PROGMEM = {"NO ANSWER"};
    enum ResultCodes { R_OK, R_CONNECT, R_RING, R_NO_CARRIER, R_ERROR, R_NO_ANSWER, R_RING_IP };
    const char * const resultCodes[] PROGMEM = { okStr, connectStr, ringStr, noCarrierStr, errorStr, noAnswerStr, ringStr};
-   enum DtrStates { DTR_IGNORE, DTR_GOTO_COMMAND, DTR_END_CALL, DTR_RESET};
 
    WiFiClient tcpClient;
    uint32_t bytesIn = 0, bytesOut = 0;
@@ -45,9 +44,6 @@
       bool      extendedCodes;
       bool      verbose;
       bool      quiet;
-      DtrStates dtrHandling;
-      bool      speaker;
-      uint8_t   volume;
    } settings;
 
    char atCmd[MAX_CMD_LEN + 1], lastCmd[MAX_CMD_LEN + 1];
@@ -57,14 +53,13 @@
 
    bool     ringing = false;     // no incoming call
    uint8_t  ringCount = 0;       // current incoming call ring count
-   uint32_t lastRingMs = 0;      // time of last RING result
+   uint32_t nextRingMs = 0;      // time of mext RING result
    uint8_t  escCount = 0;        // Go to AT mode at "+++" sequence, that has to be counted
-   uint32_t startGuardTime = 0;  // When did we last receive a "+++" sequence
+   uint32_t guardTime = 0;       // When did we last receive a "+++" sequence
    char     password[MAX_PWD_LEN + 1];
    uint8_t  passwordTries = 0;   // # of unsuccessful tries at incoming password
    uint8_t  passwordLen = 0;
    uint8_t  txBuf[TX_BUF_SIZE];  // Transmit Buffer
    uint8_t  sessionTelnetType;
-   volatile bool dtrWentInactive = false;
    bool     amClient = true;     // true if we've dialled out, rather than been dialled into
 #endif

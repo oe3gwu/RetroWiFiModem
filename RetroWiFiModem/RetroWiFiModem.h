@@ -10,7 +10,7 @@
    #define ESC_CHAR              '+'
    #define ESC_COUNT             3
    #define GUARD_TIME            1000
-   #define MAGIC_NUMBER          0x0002
+   #define MAGIC_NUMBER          0x4321
    #define MAX_SSID_LEN          32
    #define MAX_WIFI_PWD_LEN      64
    #define DEFAULT_LISTEN_PORT   6400
@@ -52,14 +52,6 @@
    #define LINEMODE  ((uint8_t)34)
    #define XDISPLOC  ((uint8_t)35)
    #define NEW_ENVIRON ((uint8_t)39)
-   #define MSDP      ((uint8_t)69)  //
-   #define MSSP      ((uint8_t)70)  //
-   #define MCCP      ((uint8_t)85)  //
-   #define MCCP2     ((uint8_t)86)  //
-   #define MCCP3     ((uint8_t)87)  // MUD Telnet extensions
-   #define MSP       ((uint8_t)91)  //
-   #define MXP       ((uint8_t)93)  //
-   #define GMCP      ((uint8_t)201) //
    #define BINARY    ((uint8_t)0)
    #define ECHO      ((uint8_t)1)
    #define SUP_GA    ((uint8_t)3)
@@ -89,9 +81,7 @@
       #define RI  D12           // (GPIO12) output
       #define DSR D4            // (GPIO04) output
       #define DCD D3            // (GPIO05) output
-      #define DTR D8            // (GPIO00) input
       #define TXEN D5           // (GPIO14) output
-      #define BUSY D2           // (GPIO16) input
    #endif
 
    #ifdef ARDUINO_ESP8266_WEMOS_D1MINI
@@ -101,18 +91,7 @@
       #define RI  D6            // (GPIO12) output
       #define DSR D2            // (GPIO04) output
       #define DCD D1            // (GPIO05) output
-      #define DTR D3            // (GPIO00) input
       #define TXEN D5           // (GPIO14) output
-      #define BUSY D0           // (GPIO16) input
    #endif
-
-   // Sound player definitions
-   #define SOUND_DIAL_TONE 1
-   #define SOUND_DIALLING (SOUND_DIAL_TONE+1)
-   #define NUM_DIAL_SOUNDS 10
-   #define SOUND_RING (SOUND_DIALLING+NUM_DIAL_SOUNDS)
-   #define SOUND_CONNECT_300 (SOUND_RING+1)
-   #define SOUND_CONNECT_1200 (SOUND_CONNECT_300+1)
-   #define SOUND_CONNECT_9600 (SOUND_CONNECT_1200+1)
 
 #endif

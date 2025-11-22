@@ -30,9 +30,10 @@ char *doAutoExecute(char *atCmd) {
 //
 char *doAreYouThere(char *atCmd) {
 
+   static const uint8_t areYouThere[] = {IAC, AYT};
+
    if( tcpClient.connected() && settings.telnet != NO_TELNET ) {
       state = ONLINE;
-      dtrWentInactive = false;
       bytesOut += tcpClient.write(IAC);
       bytesOut += tcpClient.write(AYT);
    } else {
@@ -130,7 +131,7 @@ char *doWiFiPassword(char *atCmd) {
 // AT$SB=n set serial speed
 //
 char *doSpeedChange(char *atCmd) {
-   uint32_t newSerialSpeed;
+   long newSerialSpeed;
 
    switch( atCmd[0] ) {
       case '?':
