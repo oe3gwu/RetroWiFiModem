@@ -17,7 +17,7 @@ char *factoryDefaults(char *atCmd) {
       settings.alias[i][0] = NUL;
       settings.speedDial[i][0] = NUL;
    }
-   strcpy(settings.mdnsName, "espmodem");
+   strcpy(settings.mdnsName, "esp32modem");
    settings.autoAnswer = 0;
    settings.listenPort = 0;
    strcpy(settings.busyMsg, "Sorry, the system is currently busy. Please try again later.");
@@ -48,64 +48,8 @@ char *factoryDefaults(char *atCmd) {
    if( atCmd ) {
       atCmd += 2;
       if( !atCmd[0] ) {
-         sendResult(R_OK);
+         sendResult(RC_OK);
       }
-   }
-   return atCmd;
-}
-
-//
-// AT&D? DTR handling setting
-// AT&D0 ignore DTR
-// AT&D1 go offline when DTR transitions to off
-// AT&D2 hang up when DTR transitions to off
-// AT&D3 reset when DTR transitions to off
-//
-char *doDtrHandling(char *atCmd) {
-   if( settings.dtrHandling != DTR_IGNORE ) {
-      detachInterrupt( digitalPinToInterrupt(DTR) );
-   }
-   switch( atCmd[0] ) {
-      case '?':
-         ++atCmd;
-         printf("%u\r\n", (uint8_t)settings.dtrHandling);
-         if( !atCmd[0] ) {
-            sendResult(R_OK);
-         }
-         break;
-      case NUL:
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-         switch( atCmd[0] ) {
-            case NUL:
-            case '0':
-               settings.dtrHandling = DTR_IGNORE;
-               break;
-            case '1':
-               settings.dtrHandling = DTR_GOTO_COMMAND;
-               break;
-            case '2':
-               settings.dtrHandling = DTR_END_CALL;
-               break;
-            case '3':
-               settings.dtrHandling = DTR_RESET;
-               break;
-         }
-         if( settings.dtrHandling != DTR_IGNORE ) {
-            attachInterrupt( digitalPinToInterrupt(DTR), dtrIrq, RISING );
-         }
-         if( atCmd[0] ) {
-            ++atCmd;
-         }
-         if( !atCmd[0] ) {
-            sendResult(R_OK);
-         }
-         break;
-      default:
-         sendResult(R_ERROR);
-         break;
    }
    return atCmd;
 }
@@ -121,7 +65,7 @@ char *doFlowControl(char *atCmd) {
          ++atCmd;
          Serial.println(settings.rtsCts);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '0':
@@ -132,11 +76,11 @@ char *doFlowControl(char *atCmd) {
             ++atCmd;
          }
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -152,7 +96,7 @@ char *doServerPassword(char *atCmd) {
          ++atCmd;
          Serial.println(settings.serverPassword);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '=':
@@ -160,10 +104,10 @@ char *doServerPassword(char *atCmd) {
          strncpy(settings.serverPassword, atCmd, MAX_PWD_LEN);
          settings.serverPassword[MAX_PWD_LEN] = NUL;
          atCmd[0] = NUL;
-         sendResult(R_OK);
+         sendResult(RC_OK);
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -181,18 +125,18 @@ char *displayAllSettings(char* atCmd) {
       case NUL:
          displayCurrentSettings();
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '1':
          ++atCmd;
          displayStoredSettings();
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -205,10 +149,10 @@ char *updateNvram(char *atCmd) {
    EEPROM.put(0, settings);
    if( EEPROM.commit() ) {
       if( !atCmd[0] ) {
-         sendResult(R_OK);
+         sendResult(RC_OK);
       }
    } else {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
    }
    return atCmd;
 }
@@ -230,10 +174,10 @@ char *doSpeedDialSlot(char *atCmd) {
                Serial.printf("%s,%s\r\n",
                   settings.speedDial[slot], settings.alias[slot]);
                if( !atCmd[0] ) {
-                  sendResult(R_OK);
+                  sendResult(RC_OK);
                }
             } else {
-               sendResult(R_ERROR);
+               sendResult(RC_ERROR);
             }
             break;
          case '=':
@@ -242,11 +186,11 @@ char *doSpeedDialSlot(char *atCmd) {
                // erase slot
                settings.speedDial[slot][0] = NUL;
                settings.alias[slot][0] = NUL;
-               sendResult(R_OK);
+               sendResult(RC_OK);
             } else {
                char *comma = strchr(atCmd, ',');
                if( !comma ) {
-                  sendResult(R_ERROR);
+                  sendResult(RC_ERROR);
                } else {
                   *comma++ = NUL;
                   strncpy(settings.speedDial[slot], atCmd, MAX_SPEED_DIAL_LEN);
@@ -254,16 +198,16 @@ char *doSpeedDialSlot(char *atCmd) {
                   strncpy(settings.alias[slot], comma, MAX_ALIAS_LEN);
                   settings.alias[slot][MAX_ALIAS_LEN] = NUL;
                   atCmd[0] = NUL;
-                  sendResult(R_OK);
+                  sendResult(RC_OK);
                }
             }
             break;
          default:
-            sendResult(R_ERROR);
+            sendResult(RC_ERROR);
             break;
       }
    } else {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
    }
    return atCmd;
 }

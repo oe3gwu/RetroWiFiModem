@@ -3,6 +3,7 @@
 //
 char *answerCall(char *atCmd) {
    tcpClient = tcpServer.available();
+   tcpClient.setNoDelay(true);
    digitalWrite(RI, !ACTIVE); // we've picked up so ringing stops
    ringing = false;
    ringCount = 0;
@@ -17,11 +18,10 @@ char *answerCall(char *atCmd) {
       tcpClient.write(WONT);
       tcpClient.write(LINEMODE);
    }
-   sendResult(R_RING_IP);
+   sendResult(RC_RING_IP);
    delay(1000);
    connectTime = millis();
-   dtrWentInactive = false;
-   sendResult(R_CONNECT);
+   sendResult(RC_CONNECT);
    digitalWrite(DCD, ACTIVE); // we've got a carrier signal
    amClient = false;
    state = ONLINE;
@@ -40,7 +40,7 @@ char *wifiConnection(char *atCmd) {
          ++atCmd;
          Serial.println(WiFi.status() == WL_CONNECTED ? '1' : '0');
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '0':
@@ -48,7 +48,7 @@ char *wifiConnection(char *atCmd) {
       case NUL:
          WiFi.disconnect();
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          digitalWrite(DSR, !ACTIVE);  // modem is not ready
          break;
@@ -73,7 +73,7 @@ char *wifiConnection(char *atCmd) {
                Serial.println();
             }
             if( WiFi.status() != WL_CONNECTED ) {
-               sendResult(R_ERROR);
+               sendResult(RC_ERROR);
             } else {
                digitalWrite(DSR, ACTIVE);  // modem is ready
                yield();
@@ -82,18 +82,18 @@ char *wifiConnection(char *atCmd) {
                      settings.ssid, WiFi.localIP().toString().c_str());
                }
                if( !atCmd[0] ) {
-                  sendResult(R_OK);
+                  sendResult(RC_OK);
                }
             }
          } else {
             if( !settings.quiet && settings.extendedCodes ) {
                Serial.println(F("Configure SSID and password. Type AT? for help."));
             }
-            sendResult(R_ERROR);
+            sendResult(RC_ERROR);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -114,7 +114,7 @@ char *speedDialNumber(char *atCmd) {
       number[MAX_SPEED_DIAL_LEN] = NUL;
       dialNumber(number);
    } else {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
    }
    return atCmd;
 }
@@ -123,7 +123,7 @@ char *speedDialNumber(char *atCmd) {
 // ATDThost[:port] dial a number
 //
 char *dialNumber(char *atCmd) {
-   char *host, *port;
+   char *host, *port, *ptr;
    char tempNumber[MAX_SPEED_DIAL_LEN + 1];
    int portNum;
 
@@ -180,48 +180,17 @@ char *dialNumber(char *atCmd) {
       Serial.printf("DIALLING %s:%u\r\n", host, portNum);
       Serial.flush();
    }
-   if( !settings.speaker ) {
-      delay(2000);   // delay for ZMP to be able to detect CONNECT
-   } else {
-      uint8_t dialNumber = 0;
-      for( unsigned i=0; i<strlen(host); ++i ) {
-         dialNumber += host[i];
-      }
-      dialNumber %= NUM_DIAL_SOUNDS;
-      playSound(SOUND_DIAL_TONE);
-      if( !Serial.available() ) {
-         playSound(SOUND_DIALLING+dialNumber);
-         if( !Serial.available() ) {
-            unsigned long ringDelay = millis();
-            // wait 2.5 seconds after dialling for first ring tone
-            while( millis() - ringDelay < 2500 && !Serial.available() ) {
-               delay(10);
-            }
-            if( !Serial.available() ) {
-               playSound(SOUND_RING);
-               if( !Serial.available() ) {
-                  if( settings.serialSpeed < 1200 ) {
-                     playSound(SOUND_CONNECT_300);
-                  } else if( settings.serialSpeed < 9600 ) {
-                     playSound(SOUND_CONNECT_1200);
-                  } else {
-                     playSound(SOUND_CONNECT_9600);
-                  }
-               }
-            }
-         }
-      }
-   }
+   delay(2000);   // delay for ZMP to be able to detect CONNECT
    if( !Serial.available() && tcpClient.connect(host, portNum) ) {
+      tcpClient.setNoDelay(true);
       connectTime = millis();
-      dtrWentInactive = false;
-      sendResult(R_CONNECT);
+      sendResult(RC_CONNECT);
       digitalWrite(DCD, ACTIVE);
       amClient = true;
       state = ONLINE;
       yield();
    } else {
-      sendResult(R_NO_CARRIER);
+      sendResult(RC_NO_CARRIER);
       digitalWrite(DCD, !ACTIVE);
    }
    atCmd[0] = NUL;
@@ -239,7 +208,7 @@ char *doEcho(char *atCmd) {
          ++atCmd;
          Serial.println(settings.echo);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '0':
@@ -250,11 +219,11 @@ char *doEcho(char *atCmd) {
             ++atCmd;
          }
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -277,7 +246,7 @@ char *httpGet(char *atCmd) {
       *port = NUL;
    }
    if( !host ) {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
       return atCmd;
    } else {
       host += 7; // skip over http://
@@ -296,12 +265,12 @@ char *httpGet(char *atCmd) {
 #endif
    // Establish connection
    if( !tcpClient.connect(host, portNum) ) {
-      sendResult(R_NO_CARRIER);
+      sendResult(RC_NO_CARRIER);
       digitalWrite(DCD, !ACTIVE);
    } else {
       connectTime = millis();
-      dtrWentInactive = false;
-      sendResult(R_CONNECT);
+      tcpClient.setNoDelay(true);
+      sendResult(RC_CONNECT);
       digitalWrite(DCD, ACTIVE);
       amClient = true;
       state = ONLINE;
@@ -326,7 +295,7 @@ char *hangup(char *atCmd) {
    if( tcpClient.connected() ) {
       endCall();
    } else {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
    }
    return atCmd;
 }
@@ -339,57 +308,55 @@ char *hangup(char *atCmd) {
 // with an odd number of strings, add an empty string ("") at the end
 // to pad things out.
 //
-const char helpStr01[] = "Help..........: AT?";
-const char helpStr02[] = "Repeat command: A/";
-const char helpStr03[] = "Answer call...: ATA";
-const char helpStr04[] = "WiFi connect..: ATCn";
-const char helpStr05[] = "Speed dial....: ATDSn";
-const char helpStr06[] = "Dial host.....: ATDThost[:port]";
-const char helpStr07[] = "Command echo..: ATEn";
-const char helpStr08[] = "HTTP get......: ATGEThttp://host[/page]";
-const char helpStr09[] = "Hang up.......: ATH";
-const char helpStr10[] = "Network info..: ATI";
-const char helpStr11[] = "Speaker Volume: ATLn";
-const char helpStr12[] = "Speaker.On/Off: ATMn";
-const char helpStr13[] = "Handle Telnet.: ATNETn";
-const char helpStr14[] = "Leave cmd mode: ATO";
-const char helpStr15[] = "Quiet mode....: ATQn";
-const char helpStr16[] = "NIST date.time: ATRD/ATRT";
-const char helpStr17[] = "Auto answer...: ATS0=n";
-const char helpStr18[] = "Verbose mode..: ATVn";
-const char helpStr19[] = "Extended codes: ATXn";
-const char helpStr20[] = "Modem reset...: ATZ";
-const char helpStr21[] = "DTR handling..: AT&D";
-const char helpStr22[] = "Fact. defaults: AT&F";
-const char helpStr23[] = "Flow control..: AT&Kn";
-const char helpStr24[] = "Server passwd.: AT&R=server password";
-const char helpStr25[] = "Show settings.: AT&Vn";
-const char helpStr26[] = "Update NVRAM..: AT&W";
-const char helpStr27[] = "Set speed dial: AT&Zn=host[:port],alias";
-const char helpStr28[] = "Auto execute..: AT$AE=AT command";
-const char helpStr29[] = "Are You There?: AT$AYT";
-const char helpStr30[] = "Busy message..: AT$BM=busy message";
-const char helpStr31[] = "mDNS name.....: AT$MDNS=mDNS name";
-const char helpStr32[] = "WiFi password.: AT$PASS=WiFi password";
-const char helpStr33[] = "Serial speed..: AT$SB=n";
-const char helpStr34[] = "Server port...: AT$SP=n";
-const char helpStr35[] = "WiFi SSID.....: AT$SSID=ssid";
-const char helpStr36[] = "Data config...: AT$SU=dps";
-const char helpStr37[] = "Location......: AT$TTL=telnet location";
-const char helpStr38[] = "Terminal size.: AT$TTS=WxH";
-const char helpStr39[] = "Terminal type.: AT$TTY=terminal type";
-const char helpStr40[] = "Startup wait..: AT$W=n";
-const char helpStr41[] = "Query most commands followed by '?'";
-const char helpStr42[] = "e.g. ATQ?, AT&K?, AT$SSID?";
+const char helpStr01[] PROGMEM = "Help..........: AT?";
+const char helpStr02[] PROGMEM = "Repeat command: A/";
+const char helpStr03[] PROGMEM = "Answer call...: ATA";
+const char helpStr04[] PROGMEM = "WiFi connect..: ATCn";
+const char helpStr05[] PROGMEM = "Speed dial....: ATDSn";
+const char helpStr06[] PROGMEM = "Dial host.....: ATDThost[:port]";
+const char helpStr07[] PROGMEM = "Command echo..: ATEn";
+const char helpStr08[] PROGMEM = "HTTP get......: ATGEThttp://host[/page]";
+const char helpStr09[] PROGMEM = "Hang up.......: ATH";
+const char helpStr10[] PROGMEM = "Network info..: ATI";
+const char helpStr11[] PROGMEM = "Handle Telnet.: ATNETn";
+const char helpStr12[] PROGMEM = "Leave cmd mode: ATO";
+const char helpStr13[] PROGMEM = "Quiet mode....: ATQn";
+const char helpStr14[] PROGMEM = "NIST date.time: ATRD/ATRT";
+const char helpStr15[] PROGMEM = "Auto answer...: ATS0=n";
+const char helpStr16[] PROGMEM = "Verbose mode..: ATVn";
+const char helpStr17[] PROGMEM = "Extended codes: ATXn";
+const char helpStr18[] PROGMEM = "Modem reset...: ATZ";
+const char helpStr19[] PROGMEM = "Fact. defaults: AT&F";
+const char helpStr20[] PROGMEM = "Flow control..: AT&Kn";
+const char helpStr21[] PROGMEM = "Server passwd.: AT&R=server password";
+const char helpStr22[] PROGMEM = "Show settings.: AT&Vn";
+const char helpStr23[] PROGMEM = "Update NVRAM..: AT&W";
+const char helpStr24[] PROGMEM = "Set speed dial: AT&Zn=host[:port],alias";
+const char helpStr25[] PROGMEM = "Auto execute..: AT$AE=AT command";
+const char helpStr26[] PROGMEM = "Are You There?: AT$AYT";
+const char helpStr27[] PROGMEM = "Busy message..: AT$BM=busy message";
+const char helpStr28[] PROGMEM = "mDNS name.....: AT$MDNS=mDNS name";
+const char helpStr29[] PROGMEM = "WiFi password.: AT$PASS=WiFi password";
+const char helpStr30[] PROGMEM = "Serial speed..: AT$SB=n";
+const char helpStr31[] PROGMEM = "Server port...: AT$SP=n";
+const char helpStr32[] PROGMEM = "WiFi SSID.....: AT$SSID=ssid";
+const char helpStr33[] PROGMEM = "Data config...: AT$SU=dps";
+const char helpStr34[] PROGMEM = "Location......: AT$TTL=telnet location";
+const char helpStr35[] PROGMEM = "Terminal size.: AT$TTS=WxH";
+const char helpStr36[] PROGMEM = "Terminal type.: AT$TTY=terminal type";
+const char helpStr37[] PROGMEM = "Startup wait..: AT$W=n";
+const char helpStr38[] PROGMEM = "";
+const char helpStr39[] PROGMEM = "Query most commands followed by '?'";
+const char helpStr40[] PROGMEM = "e.g. ATQ?, AT&K?, AT$SSID?";
 
-const char* const helpStrs[] = {
+const char* const helpStrs[] PROGMEM = {
    helpStr01, helpStr02, helpStr03, helpStr04, helpStr05, helpStr06,
    helpStr07, helpStr08, helpStr09, helpStr10, helpStr11, helpStr12,
    helpStr13, helpStr14, helpStr15, helpStr16, helpStr17, helpStr18,
    helpStr19, helpStr20, helpStr21, helpStr22, helpStr23, helpStr24,
    helpStr25, helpStr26, helpStr27, helpStr28, helpStr29, helpStr30,
    helpStr31, helpStr32, helpStr33, helpStr34, helpStr35, helpStr36,
-   helpStr37, helpStr38, helpStr39, helpStr40, helpStr41, helpStr42
+   helpStr37, helpStr38, helpStr39, helpStr40
 };
 #define NUM_HELP_STRS (sizeof(helpStrs) / sizeof(helpStrs[0]))
 
@@ -399,7 +366,7 @@ char *showHelp(char *atCmd) {
    PagedOut(F("AT Command Summary:"), true);
    if( settings.width >= 80 ) {
       // dual columns
-      for( unsigned i=0; i<NUM_HELP_STRS/2; ++i ) {
+      for( int i=0; i<NUM_HELP_STRS/2; ++i ) {
          strncpy_P(helpLine1, helpStrs[i], (sizeof helpLine1)-1);
          helpLine[(sizeof helpLine1)-1] = 0;
          strncpy_P(helpLine2, helpStrs[i+NUM_HELP_STRS/2], sizeof helpLine2);
@@ -416,7 +383,7 @@ char *showHelp(char *atCmd) {
       }
    } else {
       // single column
-      for( unsigned i=0; i<NUM_HELP_STRS; ++i ) {
+      for( int i=0; i<NUM_HELP_STRS; ++i ) {
          strncpy_P(helpLine,helpStrs[i], (sizeof helpLine)-1);
          helpLine[(sizeof helpLine)-1] = 0;
          if( PagedOut(helpLine) ) {
@@ -425,7 +392,7 @@ char *showHelp(char *atCmd) {
       }
    }
    if( !atCmd[0] ) {
-      sendResult(R_OK);
+      sendResult(RC_OK);
    }
    return atCmd;
 }
@@ -508,75 +475,7 @@ char *showNetworkInfo(char *atCmd) {
       }
    } while( false );
    if( !atCmd[0] ) {
-      sendResult(R_OK);
-   }
-   return atCmd;
-}
-
-//
-// ATL? query speaker volume
-// ATL[0123] set speaker volume
-//
-char *doSpeakerVolume(char *atCmd) {
-   switch( atCmd[0] ) {
-      case '?':
-         ++atCmd;
-         printf("%u\r\n", settings.volume);
-         if( !atCmd[0] ) {
-            sendResult(R_OK);
-         }
-         break;
-      case '0':
-      case '1':
-      case '2':
-      case '3':
-         settings.volume = atCmd[0] - '0';
-         playerSetVolume(settings.volume);
-         if( atCmd[0] ) {
-            ++atCmd;
-         }
-         if( !atCmd[0] ) {
-            sendResult(R_OK);
-         }
-         break;
-      default:
-         sendResult(R_ERROR);
-         break;
-   }
-   return atCmd;
-}
-
-//
-// ATM? query speaker off/on
-// ATM[01] set speaker off/on
-//
-char *doSpeaker(char *atCmd) {
-   switch( atCmd[0] ) {
-      case '?':
-         ++atCmd;
-         printf("%u\r\n", settings.speaker);
-         if( !atCmd[0] ) {
-            sendResult(R_OK);
-         }
-         break;
-      case '0':
-      case '1':
-         settings.speaker = atCmd[0] == '1';
-         if( settings.speaker ) {
-            playerUnmute();
-         } else {
-            playerMute();
-         }
-         if( atCmd[0] ) {
-            ++atCmd;
-         }
-         if( !atCmd[0] ) {
-            sendResult(R_OK);
-         }
-         break;
-      default:
-         sendResult(R_ERROR);
-         break;
+      sendResult(RC_OK);
    }
    return atCmd;
 }
@@ -593,7 +492,7 @@ char *doTelnetMode(char* atCmd) {
          ++atCmd;
          Serial.println(settings.telnet);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case NUL:
@@ -607,11 +506,11 @@ char *doTelnetMode(char* atCmd) {
             settings.telnet = NO_TELNET;
          }
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -623,10 +522,9 @@ char *doTelnetMode(char* atCmd) {
 char *goOnline(char *atCmd) {
    if( tcpClient.connected() ) {
       state = ONLINE;
-      dtrWentInactive = false;
-      sendResult(R_CONNECT);
+      sendResult(RC_CONNECT);
    } else {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
    }
    return atCmd;
 }
@@ -642,7 +540,7 @@ char *doQuiet(char *atCmd) {
          ++atCmd;
          Serial.println(settings.quiet);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '0':
@@ -653,11 +551,11 @@ char *doQuiet(char *atCmd) {
             ++atCmd;
          }
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -700,10 +598,10 @@ char *doDateTime(char *atCmd) {
    }
    if( ok ) {
       if( !atCmd[0] ) {
-         sendResult(R_OK);
+         sendResult(RC_OK);
       }
    } else {
-      sendResult(R_ERROR);
+      sendResult(RC_ERROR);
    }
    return atCmd;
 }
@@ -719,7 +617,7 @@ char *doAutoAnswerConfig(char *atCmd) {
          ++atCmd;
          Serial.println(settings.autoAnswer);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '=':
@@ -730,14 +628,14 @@ char *doAutoAnswerConfig(char *atCmd) {
                ++atCmd;
             }
             if( !atCmd[0] ) {
-               sendResult(R_OK);
+               sendResult(RC_OK);
             }
          } else {
-            sendResult(R_ERROR);
+            sendResult(RC_ERROR);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -754,7 +652,7 @@ char *doEscapeCharConfig(char *atCmd) {
          ++atCmd;
          printf("%u\r\n", settings.escChar);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '=':
@@ -765,14 +663,14 @@ char *doEscapeCharConfig(char *atCmd) {
                ++atCmd;
             }
             if( !atCmd[0] ) {
-               sendResult(R_OK);
+               sendResult(RC_OK);
             }
          } else {
-            sendResult(R_ERROR);
+            sendResult(RC_ERROR);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -789,7 +687,7 @@ char *doVerbose(char* atCmd) {
          ++atCmd;
          Serial.println(settings.verbose);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '0':
@@ -800,11 +698,11 @@ char *doVerbose(char* atCmd) {
             ++atCmd;
          }
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -821,7 +719,7 @@ char *doExtended(char *atCmd) {
          ++atCmd;
          Serial.println(settings.extendedCodes);
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       case '0':
@@ -832,11 +730,11 @@ char *doExtended(char *atCmd) {
             ++atCmd;
          }
          if( !atCmd[0] ) {
-            sendResult(R_OK);
+            sendResult(RC_OK);
          }
          break;
       default:
-         sendResult(R_ERROR);
+         sendResult(RC_ERROR);
          break;
    }
    return atCmd;
@@ -846,9 +744,7 @@ char *doExtended(char *atCmd) {
 // ATZ restart the sketch
 //
 char *resetToNvram(char *atCmd) {
-   Serial.flush();                     // allow for CR/LF to finish
-   digitalWrite(TXEN, HIGH);           // before disabling the TX output
-   ESP.restart();
-   return atCmd;                       // should never actually get here...
+   modemPrepareRestart();
+   return atCmd;
 }
 

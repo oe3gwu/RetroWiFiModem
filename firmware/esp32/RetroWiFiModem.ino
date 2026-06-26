@@ -1,5 +1,5 @@
 //
-//   Retro WiFi modem: an ESP8266 based RS232<->WiFi modem
+//   Retro WiFi modem: an ESP32 based RS232<->WiFi modem
 //   with Hayes style AT commands and blinking LEDs.
 //
 //   Originally based on
@@ -21,28 +21,28 @@
 //   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include <ESP8266WiFi.h>
-#include <ESP_EEPROM.h>
+#include <WiFi.h>
+#include <EEPROM.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
-#include <uart_register.h>
+#include <driver/uart.h>
 #include <string.h>
 #include "RetroWiFiModem.h"
 #include "globals.h"
 #include "support.h"
-#include "player.h"
 #include "at_basic.h"
 #include "at_extended.h"
 #include "at_proprietary.h"
 
 // =============================================================
 void setup(void) {
+   bool ok = true;
+
    pinMode(RI, OUTPUT);
    pinMode(DCD, OUTPUT);
    pinMode(DSR, OUTPUT);
-   digitalWrite(TXEN, HIGH);     // continue disabling TX until
-   pinMode(TXEN, OUTPUT);        // we have set up the Serial port
-   pinMode(DTR, INPUT);
+   digitalWrite(TXEN, HIGH);     // disable TX until Serial is configured
+   pinMode(TXEN, OUTPUT);
 
    digitalWrite(RI, !ACTIVE);    // not ringing
    digitalWrite(DCD, !ACTIVE);   // not connected
@@ -56,22 +56,11 @@ void setup(void) {
    }
    sessionTelnetType = settings.telnet;
 
-   playerInit();
-   playerSetVolume(settings.volume);
-   if( !settings.speaker ) {
-      playerMute();
-   }
-
    Serial.begin(settings.serialSpeed, getSerialConfig());
    digitalWrite(TXEN, LOW);      // enable the TX output
    if( settings.rtsCts ) {
       setHardwareFlow();
    }
-   // enable interrupt when DTR goes inactive if we're not ignoring it
-   if( settings.dtrHandling != DTR_IGNORE ) {
-      attachInterrupt(digitalPinToInterrupt(DTR), dtrIrq, RISING);
-   }
-
    if( settings.startupWait ) {
       while( true ) {            // wait for a CR
          yield();
@@ -83,12 +72,13 @@ void setup(void) {
       }
    }
 
-   WiFi.begin();
+   WiFi.mode(WIFI_STA);
+   WiFi.setAutoReconnect(true);
    if( settings.ssid[0] ) {
-      WiFi.waitForConnectResult();
-      WiFi.mode(WIFI_STA);
+      WiFi.begin(settings.ssid, settings.wifiPassword);
+      WiFi.waitForConnectResult(15000);
    }
-   WiFiClient::setDefaultNoDelay(true);  // disable Nalge algorithm by default
+   // TCP_NODELAY is set per-client on connect (see dialNumber/answerCall)
 
    if( settings.listenPort ) {
       tcpServer.begin(settings.listenPort);
@@ -110,23 +100,19 @@ void setup(void) {
          }
          doAtCmds(atCmd);                  // auto execute command
       } else {
-         sendResult(R_OK);
+         sendResult(RC_OK);
       }
    } else {
-      sendResult(R_ERROR);           // SSID configured, but not connected
-   }
-
-   playerSetVolume(settings.volume);
-   if( !settings.speaker ) {
-      playerMute();
+      sendResult(RC_ERROR);           // SSID configured, but not connected
    }
 
   // startup message here:
   Serial.println();
-  Serial.println("=========================================");
-  Serial.println("      RetroWiFiModem by Jerrec"           );
-  Serial.println("      2025 - ESP8266 Hayes Modem"         );
-  Serial.println("=========================================");
+  Serial.println("============================================================");
+  Serial.println("   RetroWiFiModem by mecparts, benryves and jerrec"          );
+  Serial.println("   2021 - 2025 | ESP32 Hayes Modem"                          );
+  Serial.println("   AT and PPP Support"                                       );
+  Serial.println("============================================================");
   Serial.println();
 
   Serial.print("Connecting WiFi ...");
@@ -162,17 +148,12 @@ void setup(void) {
     Serial.println("NOT READY");
     
   }
-
 }
 
 // =============================================================
 void loop(void) {
 
    checkForIncomingCall();
-
-   if( settings.dtrHandling == DTR_RESET && checkDtrIrq() ) {
-      resetToNvram(NULL);
-   }
 
    switch( state ) {
 
@@ -206,32 +187,10 @@ void loop(void) {
             }
          }
 
-         if( escCount == ESC_COUNT && startGuardTime && millis() - startGuardTime > GUARD_TIME ) {
+         if( escCount == ESC_COUNT && millis() > guardTime ) {
             state = CMD_IN_CALL;          // +++ detected, back to command mode
-            sendResult(R_OK);
+            sendResult(RC_OK);
             escCount = 0;
-         }
-
-         if( settings.dtrHandling != DTR_IGNORE && checkDtrIrq() ) {
-            switch( settings.dtrHandling ) {
-
-               case DTR_GOTO_COMMAND:
-                  state = CMD_IN_CALL;
-                  sendResult(R_OK);
-                  escCount = 0;
-                  break;
-
-               case DTR_END_CALL:
-                  endCall();
-                  break;
-
-               case DTR_RESET:
-                  resetToNvram(NULL);
-                  break;
-
-               default:
-                  break;
-            }
          }
 
          if( !tcpClient.connected() ) {   // no client?
@@ -249,7 +208,7 @@ void doAtCmds(char *atCmd) {
    if( atCmd[0] ) {
       // is it an AT command?
       if( strncasecmp(atCmd, "AT", 2) ) {
-         sendResult(R_ERROR); // nope, time to die
+         sendResult(RC_ERROR); // nope, time to die
       } else {
          // save command for possible future A/
          strncpy(lastCmd, atCmd, MAX_CMD_LEN);
@@ -259,7 +218,7 @@ void doAtCmds(char *atCmd) {
 
          if( !atCmd[0] ) {
             // plain old AT
-            sendResult(R_OK);
+            sendResult(RC_OK);
          } else {
             trim(atCmd);
             while( atCmd[0] ) {
@@ -298,12 +257,6 @@ void doAtCmds(char *atCmd) {
                } else if( !strncasecmp(atCmd, "&Z", 2) && isDigit(atCmd[2]) ) {
                   // speed dial query or set
                   atCmd = doSpeedDialSlot(atCmd + 2);
-               } else if( !strncasecmp(atCmd, "L", 1) ) {
-                  // query/set speaker volume
-                  atCmd = doSpeakerVolume(atCmd + 1);
-               } else if( !strncasecmp(atCmd, "M", 1) ) {
-                  // turn speaker on/off
-                  atCmd = doSpeaker(atCmd + 1);
                } else if( !strncasecmp(atCmd, "O", 1) ) {
                   // go online
                   atCmd = goOnline(atCmd + 1);
@@ -334,9 +287,6 @@ void doAtCmds(char *atCmd) {
                } else if( !strncasecmp(atCmd, "Z", 1) ) {
                   // reset to NVRAM
                   atCmd = resetToNvram(atCmd + 1);
-               } else if( !strncasecmp(atCmd, "&D", 2) ) {
-                  //query/set DTR handling
-                  atCmd = doDtrHandling(atCmd + 2);
                } else if( !strncasecmp(atCmd, "&V", 2) ) {
                   // display current and stored settings
                   atCmd = displayAllSettings(atCmd + 2);
@@ -388,7 +338,7 @@ void doAtCmds(char *atCmd) {
                   atCmd = doMdnsName(atCmd + 5);
                } else {
                   // unrecognized command
-                  sendResult(R_ERROR);
+                  sendResult(RC_ERROR);
                }
                trim(atCmd);
             }
