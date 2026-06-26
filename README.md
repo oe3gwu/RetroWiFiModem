@@ -1,16 +1,39 @@
 # Retro WiFi Modem
 
-Ein RS-232-WLAN-Modem mit Hayes-AT-Befehlen, Status-LEDs und vollem Satz an RS-232-Steuerleitungen. Firmware für ESP8266 (Wemos D1 mini) und ESP32-WROOM-DA, plus KiCad-Platinenlayout für die ESP8266-Variante.
+Ein RS-232-WLAN-Modem mit Hayes-AT-Befehlen, Status-LEDs und vollem Satz an RS-232-Steuerleitungen.
+
+Dieses Repository bietet zwei Wege:
+
+| Variante | Umfang |
+|----------|--------|
+| **ESP8266** | Turnkey-Lösung — Firmware, KiCad-Projekt, Gerber und Stückliste |
+| **ESP32-WROOM-DA** | Nur Firmware — kein Platinenlayout, eigene Hardware erforderlich |
 
 ## Was in diesem Repository enthalten ist
+
+### ESP8266 (Turnkey)
 
 | Pfad | Inhalt |
 |------|--------|
 | `firmware/esp8266/` | Arduino-Firmware für Wemos D1 mini |
-| `firmware/esp32/` | Arduino-Firmware-Port für ESP32-WROOM-DA |
 | `kicad/esp8266/` | KiCad-Projekt (Schaltplan, Layout, Bibliotheken) |
 | `kicad/esp8266/gerbers/` | Fertige Gerber-Dateien zum Bestellen der Platine |
 | `kicad/esp8266/RetroWiFiModem-bom.csv` | Stückliste |
+
+Platine bestellen, Bauteile löten, Wemos D1 mini einstecken, Firmware flashen — fertig.
+
+### ESP32-WROOM-DA (nur Firmware)
+
+| Pfad | Inhalt |
+|------|--------|
+| `firmware/esp32/` | Arduino-Firmware-Port für ESP32-WROOM-DA |
+
+Kein Schaltplan, kein Layout, keine Gerber. Die GPIO-Belegung in `firmware/esp32/RetroWiFiModem.h` orientiert sich an der ESP8266-Platine und muss an die eigene Verdrahtung angepasst werden.
+
+### Allgemein
+
+| Pfad | Inhalt |
+|------|--------|
 | `LICENSE.txt` | GNU GPL v3 |
 
 ## Funktionen
@@ -23,9 +46,9 @@ Ein RS-232-WLAN-Modem mit Hayes-AT-Befehlen, Status-LEDs und vollem Satz an RS-2
 - TCP-Server-Modus mit optionalem Passwort
 - OTA-Firmware-Update über WLAN (Arduino IDE)
 
-## Hardware (`kicad/esp8266/`)
+## ESP8266 — Hardware und Aufbau
 
-Die Platine ist für einen [Wemos D1 mini](https://docs.wemos.cc/en/latest/d1/d1_mini.html) ausgelegt.
+Die Platine in `kicad/esp8266/` ist für einen [Wemos D1 mini](https://docs.wemos.cc/en/latest/d1/d1_mini.html) ausgelegt.
 
 | Komponente | Funktion |
 |------------|----------|
@@ -34,26 +57,28 @@ Die Platine ist für einen [Wemos D1 mini](https://docs.wemos.cc/en/latest/d1/d1
 | 74HCT245 | LED-Treiber für Statusanzeigen |
 | 74HC32 | OR-Gatter — maskiert Boot-Ausgabe auf der seriellen Leitung |
 | LM2931 | Separater 3,3-V-Regler für Peripherie |
-| DFPlayer Mini | Auf der Platine vorgesehen (nicht von der Firmware in diesem Repo angesteuert) |
+| DFPlayer Mini | Auf der Platine vorgesehen (nicht von der Firmware angesteuert) |
 
 **Stromversorgung:** 5 V, Mittelkontakt positiv, Hohlstecker 2,1 × 5,5 mm.
 
-**Platine bestellen:** Gerber-Dateien in `kicad/esp8266/gerbers/`, Stückliste in `kicad/esp8266/RetroWiFiModem-bom.csv`.
+**Platine bestellen:** Gerber in `kicad/esp8266/gerbers/`, Stückliste in `kicad/esp8266/RetroWiFiModem-bom.csv`.
 
 **Schaltplan bearbeiten:** `kicad/esp8266/RetroWiFiModem.kicad_pro` in KiCad öffnen.
 
-### Pinbelegung (Wemos D1 mini)
+### Pinbelegung ESP8266 (Wemos D1 mini auf der Platine)
 
-Definiert in `firmware/esp8266/RetroWiFiModem.h` (ESP32-WROOM-DA-Port: `firmware/esp32/RetroWiFiModem.h`):
+Definiert in `firmware/esp8266/RetroWiFiModem.h`:
 
-| Signal | GPIO | D1-mini-Pin |
-|--------|------|-------------|
-| CTS (Ausgang) | 15 | D8 |
-| RTS (Eingang) | 13 | D7 |
-| RI | 12 | D6 |
-| DSR | 4 | D2 |
-| DCD | 5 | D1 |
-| TXEN | 14 | D5 |
+| Signal | GPIO | D1-mini-Pin | Anbindung |
+|--------|------|-------------|-----------|
+| Serial TX | 1 | Tx | MAX3237 (über OR-Gatter) |
+| Serial RX | 3 | Rx | MAX3237 |
+| DSR | 4 | D2 | MAX3237 |
+| DCD | 5 | D1 | MAX3237 |
+| TXEN | 14 | D5 | OR-Gatter (Boot-Müll maskieren) |
+| RI | 12 | D6 | MAX3237 + LED |
+| RTS (Eingang) | 13 | D7 | MAX3237 |
+| CTS (Ausgang) | 15 | D8 | MAX3237 |
 
 > RTS/CTS sind aus Modem-Sicht (DCE) benannt.
 
@@ -73,6 +98,8 @@ at_proprietary.h      — Proprietäre AT-Befehle (AT$…)
 
 ### ESP8266 — `firmware/esp8266/`
 
+Für die Turnkey-Platine mit Wemos D1 mini.
+
 **Arduino IDE — Voraussetzungen:**
 
 1. Board: *LOLIN(WEMOS) D1 R2 & mini*
@@ -83,18 +110,24 @@ at_proprietary.h      — Proprietäre AT-Befehle (AT$…)
 
 ### ESP32-WROOM-DA — `firmware/esp32/`
 
+Nur Software — **kein Board in diesem Repository**. Eigene Hardware mit RS-232-Pegelwandler (z. B. MAX3237) und passender GPIO-Verdrahtung erforderlich.
+
+Die Standard-Pinbelegung in `firmware/esp32/RetroWiFiModem.h` entspricht der ESP8266-Platine (siehe Tabelle oben). Bei abweichender Verdrahtung die `#define`-Zeilen für CTS, RTS, RI, DSR, DCD und TXEN anpassen.
+
 **Arduino IDE — Voraussetzungen:**
 
 1. Board-Paket [esp32 by Espressif](https://docs.espressif.com/projects/arduino-esp32/) installieren
 2. Board: *ESP32-WROOM-DA Module*
 
-`firmware/esp32/RetroWiFiModem.ino` öffnen. Die GPIO-Belegung in `RetroWiFiModem.h` ist auf den ESP32-WROOM-DA ausgelegt.
+`firmware/esp32/RetroWiFiModem.ino` öffnen, kompilieren und flashen.
+
+> Die ESP8266-Platine ist **nicht** mit einem ESP32-WROOM-DA bestückbar (anderes Modul, andere Boot-Strapping-Anforderungen an GPIO 12 und 15).
 
 > EEPROM-Magic-Number: ESP8266 `0x4321`, ESP32-WROOM-DA `0x4322` — Einstellungen sind nicht zwischen Plattformen austauschbar.
 
 ## Ersteinrichtung
 
-Werkseinstellung: **1200 Baud, 8N1**. Für die Ersteinrichtung empfiehlt sich `AT$SB=9600` und anschließend `AT&W`.
+Gilt für beide Firmware-Varianten. Werkseinstellung: **1200 Baud, 8N1**. Für die Ersteinrichtung empfiehlt sich `AT$SB=9600` und anschließend `AT&W`.
 
 ```
 AT$SSID=MeinWLAN
@@ -131,7 +164,7 @@ Mehrere Befehle pro Zeile möglich (`AT S0=1 Q0 V1`). String-Argumente (`AT$SSID
 
 **WLAN:** `ATC0`/`ATC1`, `ATI`, `ATGEThttp://…`, `ATRD`/`ATRT`
 
-**Konfiguration:** `AT&W`, `AT&F`, `AT&V0`/`AT&V1`, `AT&Zn=…`, `AT$SSID=`, `AT$PASS=`, `AT$AE=`, `AT$BM=`, `AT&R=`, `ATZ`
+**Konfiguration:** `AT&W`, `AT&F`, `AT&V0`/`AT&V1`, `AT&Zn=…`, `AT$SSID=`, `AT$PASS=`, `AT$AE=`, `AT$BM=`, `AT$R=`, `ATZ`
 
 **Verhalten:** `ATE0`/`ATE1`, `ATQ0`/`ATQ1`, `ATV0`/`ATV1`, `ATX0`/`ATX1`, `ATS0=n`, `ATS2=n`
 
