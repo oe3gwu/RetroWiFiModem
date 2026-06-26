@@ -70,7 +70,7 @@
 
    #define ACTIVE LOW           // RS232 control signals are active low
 
-   // As the ESP32 is being used as a modem (DCE) in this application,
+   // As the ESP32-WROOM-DA is being used as a modem (DCE) in this application,
    // RTS/CTS naming is reversed to match what they'd be on a modem.
    // GPIO numbers match the original Wemos D1 mini wiring where possible.
    #define CTS 15            // (GPIO15) UART CTS output to DTE

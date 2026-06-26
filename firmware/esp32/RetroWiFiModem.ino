@@ -1,5 +1,5 @@
 //
-//   Retro WiFi modem: an ESP32 based RS232<->WiFi modem
+//   Retro WiFi modem: an ESP32-WROOM-DA based RS232<->WiFi modem
 //   with Hayes style AT commands and blinking LEDs.
 //
 //   Originally based on
@@ -110,7 +110,7 @@ void setup(void) {
   Serial.println();
   Serial.println("============================================================");
   Serial.println("   RetroWiFiModem by mecparts, benryves and jerrec"          );
-  Serial.println("   2021 - 2025 | ESP32 Hayes Modem"                          );
+  Serial.println("   2021 - 2025 | ESP32-WROOM-DA Hayes Modem"                );
   Serial.println("   AT and PPP Support"                                       );
   Serial.println("============================================================");
   Serial.println();

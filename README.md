@@ -1,13 +1,13 @@
 # Retro WiFi Modem
 
-Ein RS-232-WLAN-Modem mit Hayes-AT-Befehlen, Status-LEDs und vollem Satz an RS-232-Steuerleitungen. Firmware für ESP8266 und ESP32, plus KiCad-Platinenlayout für die ESP8266-Variante.
+Ein RS-232-WLAN-Modem mit Hayes-AT-Befehlen, Status-LEDs und vollem Satz an RS-232-Steuerleitungen. Firmware für ESP8266 (Wemos D1 mini) und ESP32-WROOM-DA, plus KiCad-Platinenlayout für die ESP8266-Variante.
 
 ## Was in diesem Repository enthalten ist
 
 | Pfad | Inhalt |
 |------|--------|
 | `firmware/esp8266/` | Arduino-Firmware für Wemos D1 mini |
-| `firmware/esp32/` | Arduino-Firmware-Port für ESP32 |
+| `firmware/esp32/` | Arduino-Firmware-Port für ESP32-WROOM-DA |
 | `kicad/esp8266/` | KiCad-Projekt (Schaltplan, Layout, Bibliotheken) |
 | `kicad/esp8266/gerbers/` | Fertige Gerber-Dateien zum Bestellen der Platine |
 | `kicad/esp8266/RetroWiFiModem-bom.csv` | Stückliste |
@@ -44,7 +44,7 @@ Die Platine ist für einen [Wemos D1 mini](https://docs.wemos.cc/en/latest/d1/d1
 
 ### Pinbelegung (Wemos D1 mini)
 
-Definiert in `firmware/esp8266/RetroWiFiModem.h` (ESP32-Port: `firmware/esp32/RetroWiFiModem.h`):
+Definiert in `firmware/esp8266/RetroWiFiModem.h` (ESP32-WROOM-DA-Port: `firmware/esp32/RetroWiFiModem.h`):
 
 | Signal | GPIO | D1-mini-Pin |
 |--------|------|-------------|
@@ -81,16 +81,16 @@ at_proprietary.h      — Proprietäre AT-Befehle (AT$…)
 
 `firmware/esp8266/RetroWiFiModem.ino` öffnen, Board und Port wählen, kompilieren und flashen.
 
-### ESP32 — `firmware/esp32/`
+### ESP32-WROOM-DA — `firmware/esp32/`
 
 **Arduino IDE — Voraussetzungen:**
 
 1. Board-Paket [esp32 by Espressif](https://docs.espressif.com/projects/arduino-esp32/) installieren
-2. Passendes Board wählen (z. B. *ESP32 Dev Module*)
+2. Board: *ESP32-WROOM-DA Module*
 
-`firmware/esp32/RetroWiFiModem.ino` öffnen. GPIO-Belegung in `RetroWiFiModem.h` an eigenes Board anpassen, falls nötig.
+`firmware/esp32/RetroWiFiModem.ino` öffnen. Die GPIO-Belegung in `RetroWiFiModem.h` ist auf den ESP32-WROOM-DA ausgelegt.
 
-> EEPROM-Magic-Number: ESP8266 `0x4321`, ESP32 `0x4322` — Einstellungen sind nicht zwischen Plattformen austauschbar.
+> EEPROM-Magic-Number: ESP8266 `0x4321`, ESP32-WROOM-DA `0x4322` — Einstellungen sind nicht zwischen Plattformen austauschbar.
 
 ## Ersteinrichtung
 

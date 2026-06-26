@@ -544,7 +544,7 @@ SerialConfig getSerialConfig(void) {
    }
 }
 
-// As the ESP32 is being used as a modem (DCE) in this application,
+// As the ESP32-WROOM-DA is being used as a modem (DCE) in this application,
 // RTS/CTS naming is reversed to match what they'd be on a modem.
 void setHardwareFlow(void) {
    // CTS (GPIO15): output, tells DTE to pause sending when RX buffer fills
