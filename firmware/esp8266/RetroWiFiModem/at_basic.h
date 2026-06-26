@@ -20,6 +20,7 @@ char *answerCall(char *atCmd) {
    sendResult(R_RING_IP);
    delay(1000);
    connectTime = millis();
+   dtrWentInactive = false;
    sendResult(R_CONNECT);
    digitalWrite(DCD, ACTIVE); // we've got a carrier signal
    amClient = false;
@@ -182,6 +183,7 @@ char *dialNumber(char *atCmd) {
    delay(2000);   // delay for ZMP to be able to detect CONNECT
    if( !Serial.available() && tcpClient.connect(host, portNum) ) {
       connectTime = millis();
+      dtrWentInactive = false;
       sendResult(R_CONNECT);
       digitalWrite(DCD, ACTIVE);
       amClient = true;
@@ -267,6 +269,7 @@ char *httpGet(char *atCmd) {
       digitalWrite(DCD, !ACTIVE);
    } else {
       connectTime = millis();
+      dtrWentInactive = false;
       sendResult(R_CONNECT);
       digitalWrite(DCD, ACTIVE);
       amClient = true;
@@ -318,33 +321,35 @@ const char helpStr10[] PROGMEM = "Network info..: ATI";
 const char helpStr11[] PROGMEM = "Handle Telnet.: ATNETn";
 const char helpStr12[] PROGMEM = "Leave cmd mode: ATO";
 const char helpStr13[] PROGMEM = "Quiet mode....: ATQn";
-const char helpStr14[] PROGMEM = "NIST date.time: ATRD/ATRT";
+const char helpStr14[] PROGMEM = "NTP date.time.: ATRD/ATRT";
 const char helpStr15[] PROGMEM = "Auto answer...: ATS0=n";
 const char helpStr16[] PROGMEM = "Verbose mode..: ATVn";
 const char helpStr17[] PROGMEM = "Extended codes: ATXn";
 const char helpStr18[] PROGMEM = "Modem reset...: ATZ";
 const char helpStr19[] PROGMEM = "Fact. defaults: AT&F";
 const char helpStr20[] PROGMEM = "Flow control..: AT&Kn";
-const char helpStr21[] PROGMEM = "Server passwd.: AT&R=server password";
-const char helpStr22[] PROGMEM = "Show settings.: AT&Vn";
-const char helpStr23[] PROGMEM = "Update NVRAM..: AT&W";
-const char helpStr24[] PROGMEM = "Set speed dial: AT&Zn=host[:port],alias";
-const char helpStr25[] PROGMEM = "Auto execute..: AT$AE=AT command";
-const char helpStr26[] PROGMEM = "Are You There?: AT$AYT";
-const char helpStr27[] PROGMEM = "Busy message..: AT$BM=busy message";
-const char helpStr28[] PROGMEM = "mDNS name.....: AT$MDNS=mDNS name";
-const char helpStr29[] PROGMEM = "WiFi password.: AT$PASS=WiFi password";
-const char helpStr30[] PROGMEM = "Serial speed..: AT$SB=n";
-const char helpStr31[] PROGMEM = "Server port...: AT$SP=n";
-const char helpStr32[] PROGMEM = "WiFi SSID.....: AT$SSID=ssid";
-const char helpStr33[] PROGMEM = "Data config...: AT$SU=dps";
-const char helpStr34[] PROGMEM = "Location......: AT$TTL=telnet location";
-const char helpStr35[] PROGMEM = "Terminal size.: AT$TTS=WxH";
-const char helpStr36[] PROGMEM = "Terminal type.: AT$TTY=terminal type";
-const char helpStr37[] PROGMEM = "Startup wait..: AT$W=n";
-const char helpStr38[] PROGMEM = "";
-const char helpStr39[] PROGMEM = "Query most commands followed by '?'";
-const char helpStr40[] PROGMEM = "e.g. ATQ?, AT&K?, AT$SSID?";
+const char helpStr21[] PROGMEM = "DTR handling..: AT&Dn";
+const char helpStr22[] PROGMEM = "Server passwd.: AT&R=server password";
+const char helpStr23[] PROGMEM = "Show settings.: AT&Vn";
+const char helpStr24[] PROGMEM = "Update NVRAM..: AT&W";
+const char helpStr25[] PROGMEM = "Set speed dial: AT&Zn=host[:port],alias";
+const char helpStr26[] PROGMEM = "Auto execute..: AT$AE=AT command";
+const char helpStr27[] PROGMEM = "Are You There?: AT$AYT";
+const char helpStr28[] PROGMEM = "Busy message..: AT$BM=busy message";
+const char helpStr29[] PROGMEM = "mDNS name.....: AT$MDNS=mDNS name";
+const char helpStr30[] PROGMEM = "WiFi password.: AT$PASS=WiFi password";
+const char helpStr31[] PROGMEM = "Serial speed..: AT$SB=n";
+const char helpStr32[] PROGMEM = "Server port...: AT$SP=n";
+const char helpStr33[] PROGMEM = "WiFi SSID.....: AT$SSID=ssid";
+const char helpStr34[] PROGMEM = "Data config...: AT$SU=dps";
+const char helpStr35[] PROGMEM = "Location......: AT$TTL=telnet location";
+const char helpStr36[] PROGMEM = "Terminal size.: AT$TTS=WxH";
+const char helpStr37[] PROGMEM = "Terminal type.: AT$TTY=terminal type";
+const char helpStr38[] PROGMEM = "Startup wait..: AT$W=n";
+const char helpStr39[] PROGMEM = "";
+const char helpStr40[] PROGMEM = "Query most commands followed by '?'";
+const char helpStr41[] PROGMEM = "e.g. ATQ?, AT&K?, AT$SSID?";
+const char helpStr42[] PROGMEM = "";
 
 const char* const helpStrs[] PROGMEM = {
    helpStr01, helpStr02, helpStr03, helpStr04, helpStr05, helpStr06,
@@ -353,7 +358,7 @@ const char* const helpStrs[] PROGMEM = {
    helpStr19, helpStr20, helpStr21, helpStr22, helpStr23, helpStr24,
    helpStr25, helpStr26, helpStr27, helpStr28, helpStr29, helpStr30,
    helpStr31, helpStr32, helpStr33, helpStr34, helpStr35, helpStr36,
-   helpStr37, helpStr38, helpStr39, helpStr40
+   helpStr37, helpStr38, helpStr39, helpStr40, helpStr41, helpStr42
 };
 #define NUM_HELP_STRS (sizeof(helpStrs) / sizeof(helpStrs[0]))
 
@@ -519,6 +524,7 @@ char *doTelnetMode(char* atCmd) {
 char *goOnline(char *atCmd) {
    if( tcpClient.connected() ) {
       state = ONLINE;
+      dtrWentInactive = false;
       sendResult(R_CONNECT);
    } else {
       sendResult(R_ERROR);
@@ -559,38 +565,46 @@ char *doQuiet(char *atCmd) {
 }
 
 //
-// ATRD Displays the UTC date and time from NIST in the format
+// ATRD Displays the UTC date and time from NTP in the format
 // ATRT "YY-MM-DD HH:MM:SS"
 //
 char *doDateTime(char *atCmd) {
    bool ok = false;
-   if( !tcpClient.connected() ) {
-      char result[80], *ptr;
-      if( tcpClient.connect(NIST_HOST, NIST_PORT) ) {
-         digitalWrite(DCD, ACTIVE);
-         // read date/time from NIST
-         size_t len = tcpClient.readBytes(result, 1);
-         if( len == 1 && result[0] == '\n' ) {  // leading LF
-            len = tcpClient.readBytesUntil('\n', result, (sizeof result) - 1);
-            if( len ) {                      // string read?
-               result[len] = NUL;
-               ptr = strtok(result, " ");
-               if( ptr ) {                   // found Julian day?
-                  ptr = strtok(NULL, " ");
-                  if( ptr ) {                // found date?
-                     Serial.print(ptr);
-                     Serial.print(' ');
-                     ptr = strtok(NULL, " ");
-                     if( ptr ) {             // found time?
-                        Serial.println(ptr);
-                        ok = true;
-                     }
+   if( !tcpClient.connected() && WiFi.status() == WL_CONNECTED ) {
+      WiFiUDP udp;
+      uint8_t pkt[48] = {0xE3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+      if( udp.begin(2390) ) {
+         if( udp.beginPacket(NTP_HOST, NTP_PORT) ) {
+            udp.write(pkt, 48);
+            if( udp.endPacket() ) {
+               unsigned long start = millis();
+               while( !udp.parsePacket() && millis() - start < 2000 ) {
+                  delay(10);
+                  yield();
+               }
+               if( udp.parsePacket() >= 48 ) {
+                  udp.read(pkt, 48);
+                  unsigned long secs = ((unsigned long)pkt[40] << 24) |
+                                       ((unsigned long)pkt[41] << 16) |
+                                       ((unsigned long)pkt[42] << 8) |
+                                       (unsigned long)pkt[43];
+                  secs -= 2208988800UL;
+                  time_t t = secs;
+                  struct tm *tm = gmtime(&t);
+                  if( tm ) {
+                     char buf[32];
+                     snprintf(buf, sizeof(buf), "%02d-%02d-%02d %02d:%02d:%02d",
+                        (tm->tm_year + 1900) % 100, tm->tm_mon + 1, tm->tm_mday,
+                        tm->tm_hour, tm->tm_min, tm->tm_sec);
+                     Serial.println(buf);
+                     ok = true;
                   }
                }
             }
          }
-         tcpClient.stop();
-         digitalWrite(DCD, !ACTIVE);
+         udp.stop();
       }
    }
    if( ok ) {

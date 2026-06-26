@@ -10,6 +10,7 @@
    const char noAnswerStr[] PROGMEM = {"NO ANSWER"};
    enum ResultCodes { R_OK, R_CONNECT, R_RING, R_NO_CARRIER, R_ERROR, R_NO_ANSWER, R_RING_IP };
    const char * const resultCodes[] PROGMEM = { okStr, connectStr, ringStr, noCarrierStr, errorStr, noAnswerStr, ringStr};
+   enum DtrStates { DTR_IGNORE, DTR_GOTO_COMMAND, DTR_END_CALL, DTR_RESET };
 
    WiFiClient tcpClient;
    uint32_t bytesIn = 0, bytesOut = 0;
@@ -44,6 +45,7 @@
       bool      extendedCodes;
       bool      verbose;
       bool      quiet;
+      DtrStates dtrHandling;
    } settings;
 
    char atCmd[MAX_CMD_LEN + 1], lastCmd[MAX_CMD_LEN + 1];
@@ -62,4 +64,5 @@
    uint8_t  txBuf[TX_BUF_SIZE];  // Transmit Buffer
    uint8_t  sessionTelnetType;
    bool     amClient = true;     // true if we've dialled out, rather than been dialled into
+   volatile bool dtrWentInactive = false;
 #endif

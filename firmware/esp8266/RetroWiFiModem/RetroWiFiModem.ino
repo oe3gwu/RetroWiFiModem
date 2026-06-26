@@ -24,6 +24,7 @@
 #include <ESP8266WiFi.h>
 #include "eeprom_storage.h"
 #include <WiFiUdp.h>
+#include <time.h>
 #include <ArduinoOTA.h>
 #include <uart_register.h>
 #include <string.h>
@@ -43,6 +44,7 @@ void setup(void) {
    pinMode(DSR, OUTPUT);
    digitalWrite(TXEN, HIGH);     // continue disabling TX until
    pinMode(TXEN, OUTPUT);        // we have set up the Serial port
+   pinMode(DTR, INPUT);
 
    digitalWrite(RI, !ACTIVE);    // not ringing
    digitalWrite(DCD, !ACTIVE);   // not connected
@@ -60,6 +62,9 @@ void setup(void) {
    digitalWrite(TXEN, LOW);      // enable the TX output
    if( settings.rtsCts ) {
       setHardwareFlow();
+   }
+   if( settings.dtrHandling != DTR_IGNORE ) {
+      attachInterrupt(digitalPinToInterrupt(DTR), dtrIrq, RISING);
    }
    if( settings.startupWait ) {
       while( true ) {            // wait for a CR
@@ -154,6 +159,10 @@ void loop(void) {
 
    checkForIncomingCall();
 
+   if( settings.dtrHandling == DTR_RESET && checkDtrIrq() ) {
+      resetToNvram(NULL);
+   }
+
    switch( state ) {
 
       case CMD_NOT_IN_CALL:
@@ -190,6 +199,28 @@ void loop(void) {
             state = CMD_IN_CALL;          // +++ detected, back to command mode
             sendResult(R_OK);
             escCount = 0;
+         }
+
+         if( settings.dtrHandling != DTR_IGNORE && checkDtrIrq() ) {
+            switch( settings.dtrHandling ) {
+
+               case DTR_GOTO_COMMAND:
+                  state = CMD_IN_CALL;
+                  sendResult(R_OK);
+                  escCount = 0;
+                  break;
+
+               case DTR_END_CALL:
+                  endCall();
+                  break;
+
+               case DTR_RESET:
+                  resetToNvram(NULL);
+                  break;
+
+               default:
+                  break;
+            }
          }
 
          if( !tcpClient.connected() ) {   // no client?
@@ -286,6 +317,9 @@ void doAtCmds(char *atCmd) {
                } else if( !strncasecmp(atCmd, "Z", 1) ) {
                   // reset to NVRAM
                   atCmd = resetToNvram(atCmd + 1);
+               } else if( !strncasecmp(atCmd, "&D", 2) ) {
+                  // query/set DTR handling
+                  atCmd = doDtrHandling(atCmd + 2);
                } else if( !strncasecmp(atCmd, "&V", 2) ) {
                   // display current and stored settings
                   atCmd = displayAllSettings(atCmd + 2);

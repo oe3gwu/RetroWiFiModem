@@ -65,8 +65,8 @@
    #define DONT      ((uint8_t)254)
    #define IAC       ((uint8_t)255)
 
-   #define NIST_HOST "time-a-g.nist.gov"
-   #define NIST_PORT 13
+   #define NTP_HOST "pool.ntp.org"
+   #define NTP_PORT 123
 
    #define ACTIVE LOW           // RS232 control signals are active low
 
@@ -82,6 +82,7 @@
       #define DSR D4            // (GPIO04) output
       #define DCD D3            // (GPIO05) output
       #define TXEN D5           // (GPIO14) output
+      #define DTR D8            // (GPIO00) input
    #endif
 
    #ifdef ARDUINO_ESP8266_WEMOS_D1MINI
@@ -92,6 +93,7 @@
       #define DSR D2            // (GPIO04) output
       #define DCD D1            // (GPIO05) output
       #define TXEN D5           // (GPIO14) output
+      #define DTR D3            // (GPIO00) input
    #endif
 
 #endif

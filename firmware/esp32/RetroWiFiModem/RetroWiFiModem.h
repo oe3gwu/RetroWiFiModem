@@ -65,8 +65,8 @@
    #define DONT      ((uint8_t)254)
    #define IAC       ((uint8_t)255)
 
-   #define NIST_HOST "time-a-g.nist.gov"
-   #define NIST_PORT 13
+   #define NTP_HOST "pool.ntp.org"
+   #define NTP_PORT 123
 
    #define ACTIVE LOW           // RS232 control signals are active low
 
@@ -79,5 +79,6 @@
    #define DSR 4             // (GPIO04) output
    #define DCD 5             // (GPIO05) output
    #define TXEN 14           // (GPIO14) output, masks TX during boot
+   #define DTR 0             // (GPIO00) input, matches D1 mini D3 wiring
 
 #endif
