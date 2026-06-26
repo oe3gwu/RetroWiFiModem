@@ -15,7 +15,7 @@ Dieses Repository bietet zwei Wege:
 
 | Pfad | Inhalt |
 |------|--------|
-| `firmware/esp8266/` | Arduino-Firmware für Wemos D1 mini |
+| `firmware/esp8266/RetroWiFiModem/` | Arduino-Sketch für Wemos D1 mini |
 | `kicad/esp8266/` | KiCad-Projekt (Schaltplan, Layout, Bibliotheken) |
 | `kicad/esp8266/gerbers/` | Fertige Gerber-Dateien zum Bestellen der Platine |
 | `kicad/esp8266/RetroWiFiModem-bom.csv` | Stückliste |
@@ -26,9 +26,9 @@ Platine bestellen, Bauteile löten, Wemos D1 mini einstecken, Firmware flashen �
 
 | Pfad | Inhalt |
 |------|--------|
-| `firmware/esp32/` | Arduino-Firmware-Port für ESP32-WROOM-DA |
+| `firmware/esp32/RetroWiFiModem/` | Arduino-Sketch-Port für ESP32-WROOM-DA |
 
-Kein Schaltplan, kein Layout, keine Gerber. Die GPIO-Belegung in `firmware/esp32/RetroWiFiModem.h` orientiert sich an der ESP8266-Platine und muss an die eigene Verdrahtung angepasst werden.
+Kein Schaltplan, kein Layout, keine Gerber. Die GPIO-Belegung in `firmware/esp32/RetroWiFiModem/RetroWiFiModem.h` orientiert sich an der ESP8266-Platine und muss an die eigene Verdrahtung angepasst werden.
 
 ### Allgemein
 
@@ -67,7 +67,7 @@ Die Platine in `kicad/esp8266/` ist für einen [Wemos D1 mini](https://docs.wemo
 
 ### Pinbelegung ESP8266 (Wemos D1 mini auf der Platine)
 
-Definiert in `firmware/esp8266/RetroWiFiModem.h`:
+Definiert in `firmware/esp8266/RetroWiFiModem/RetroWiFiModem.h`:
 
 | Signal | GPIO | D1-mini-Pin | Anbindung |
 |--------|------|-------------|-----------|
@@ -96,9 +96,9 @@ at_extended.h         — Erweiterte AT-Befehle (&F, &K, &W, …)
 at_proprietary.h      — Proprietäre AT-Befehle (AT$…)
 ```
 
-### ESP8266 — `firmware/esp8266/`
+### ESP8266 — `firmware/esp8266/RetroWiFiModem/`
 
-Für die Turnkey-Platine mit Wemos D1 mini.
+Für die Turnkey-Platine mit Wemos D1 mini. In der Arduino IDE den Sketch-Ordner `RetroWiFiModem.ino` öffnen.
 
 **Arduino IDE — Voraussetzungen:**
 
@@ -106,20 +106,20 @@ Für die Turnkey-Platine mit Wemos D1 mini.
 2. ESP8266 Core **2.7.4** (`https://arduino.esp8266.com/stable/package_esp8266com_index.json`)
 3. Bibliothek [ESP_EEPROM](https://github.com/jwrw/ESP_EEPROM) **2.1.2** (ab 2.2.x schlägt `AT&W` fehl)
 
-`firmware/esp8266/RetroWiFiModem.ino` öffnen, Board und Port wählen, kompilieren und flashen.
+Board und Port wählen, kompilieren und flashen.
 
-### ESP32-WROOM-DA — `firmware/esp32/`
+### ESP32-WROOM-DA — `firmware/esp32/RetroWiFiModem/`
 
 Nur Software — **kein Board in diesem Repository**. Eigene Hardware mit RS-232-Pegelwandler (z. B. MAX3237) und passender GPIO-Verdrahtung erforderlich.
 
-Die Standard-Pinbelegung in `firmware/esp32/RetroWiFiModem.h` entspricht der ESP8266-Platine (siehe Tabelle oben). Bei abweichender Verdrahtung die `#define`-Zeilen für CTS, RTS, RI, DSR, DCD und TXEN anpassen.
+Die Standard-Pinbelegung in `firmware/esp32/RetroWiFiModem/RetroWiFiModem.h` entspricht der ESP8266-Platine (siehe Tabelle oben). Bei abweichender Verdrahtung die `#define`-Zeilen für CTS, RTS, RI, DSR, DCD und TXEN anpassen.
 
 **Arduino IDE — Voraussetzungen:**
 
 1. Board-Paket [esp32 by Espressif](https://docs.espressif.com/projects/arduino-esp32/) installieren
 2. Board: *ESP32-WROOM-DA Module*
 
-`firmware/esp32/RetroWiFiModem.ino` öffnen, kompilieren und flashen.
+In der Arduino IDE den Sketch-Ordner öffnen, kompilieren und flashen.
 
 > Die ESP8266-Platine ist **nicht** mit einem ESP32-WROOM-DA bestückbar (anderes Modul, andere Boot-Strapping-Anforderungen an GPIO 12 und 15).
 
