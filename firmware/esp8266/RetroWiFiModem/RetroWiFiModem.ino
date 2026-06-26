@@ -22,7 +22,7 @@
 //
 
 #include <ESP8266WiFi.h>
-#include <ESP_EEPROM.h>
+#include "eeprom_storage.h"
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <uart_register.h>
@@ -51,8 +51,8 @@ void setup(void) {
    EEPROM.begin(sizeof(struct Settings));
    EEPROM.get(0, settings);
    if( settings.magicNumber != MAGIC_NUMBER ) {
-      // no valid data in EEPROM/NVRAM, populate with defaults
-      factoryDefaults(NULL);
+      // no valid data in EEPROM/NVRAM, populate RAM defaults only
+      factoryDefaults(NULL, false);
    }
    sessionTelnetType = settings.telnet;
 

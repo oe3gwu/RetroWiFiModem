@@ -1,7 +1,7 @@
 //
 // AT&F reset NVRAM to defaults and load them into current settings
 //
-char *factoryDefaults(char *atCmd) {
+char *factoryDefaults(char *atCmd, bool persist = true) {
    settings.magicNumber = MAGIC_NUMBER;
    settings.ssid[0] = NUL;
    settings.wifiPassword[0] = NUL;
@@ -39,8 +39,10 @@ char *factoryDefaults(char *atCmd) {
    strcpy(settings.alias[2], "heatwave");
    strcpy(settings.speedDial[2], "heatwave.ddns.net:9640");
 
-   EEPROM.put(0, settings);
-   EEPROM.commit();
+   if( persist ) {
+      EEPROM.put(0, settings);
+      EEPROM.commit();
+   }
    if( WiFi.status() == WL_CONNECTED ) {
       WiFi.disconnect();
    }

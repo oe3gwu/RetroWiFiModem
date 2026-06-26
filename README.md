@@ -103,8 +103,12 @@ Für die Turnkey-Platine mit Wemos D1 mini. In der Arduino IDE den Sketch-Ordner
 **Arduino IDE — Voraussetzungen:**
 
 1. Board: *LOLIN(WEMOS) D1 R2 & mini*
-2. ESP8266 Core **2.7.4** (`https://arduino.esp8266.com/stable/package_esp8266com_index.json`)
-3. Bibliothek [ESP_EEPROM](https://github.com/jwrw/ESP_EEPROM) **2.1.2** (ab 2.2.x schlägt `AT&W` fehl)
+2. ESP8266 Core **3.1.2** oder neuer (`https://arduino.esp8266.com/stable/package_esp8266com_index.json`)
+3. Bibliothek [ESP_EEPROM](https://github.com/jwrw/ESP_EEPROM) in der aktuellen Version (ab 2.2.0)
+
+Die Firmware initialisiert EEPROM erst in `setup()` mit dem korrekten Flash-Sektor (`EEPROM_start`). Damit funktioniert `AT&W` auch mit ESP_EEPROM 2.2.x und aktuellem ESP8266-Core — die ältere Pinning-Version 2.1.2 ist nicht mehr nötig.
+
+**Arduino IDE:** Tools → Flash Size muss zur Hardware passen (z. B. *4MB (FS:2MB OTA:~1019KB)*).
 
 Board und Port wählen, kompilieren und flashen.
 
