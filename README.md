@@ -18,7 +18,6 @@ Dieses Repository bietet zwei Wege:
 | `firmware/esp8266/RetroWiFiModem/` | Arduino-Sketch für Wemos D1 mini |
 | `kicad/esp8266/` | KiCad-Projekt (Schaltplan, Layout, Bibliotheken) |
 | `kicad/esp8266/gerbers/` | Fertige Gerber-Dateien zum Bestellen der Platine |
-| `kicad/esp8266/RetroWiFiModem-bom.csv` | Stückliste |
 
 Platine bestellen, Bauteile löten, Wemos D1 mini einstecken, Firmware flashen — fertig.
 
@@ -61,7 +60,7 @@ Die Platine in `kicad/esp8266/` ist für einen [Wemos D1 mini](https://docs.wemo
 
 **Stromversorgung:** 5 V, Mittelkontakt positiv, Hohlstecker 2,1 × 5,5 mm.
 
-**Platine bestellen:** Gerber in `kicad/esp8266/gerbers/`, Stückliste in `kicad/esp8266/RetroWiFiModem-bom.csv`.
+**Platine bestellen:** Gerber in `kicad/esp8266/gerbers/`.
 
 **Schaltplan bearbeiten:** `kicad/esp8266/RetroWiFiModem.kicad_pro` in KiCad öffnen.
 
@@ -75,6 +74,7 @@ Definiert in `firmware/esp8266/RetroWiFiModem/RetroWiFiModem.h`:
 | Serial RX | 3 | Rx | MAX3237 |
 | DSR | 4 | D2 | MAX3237 |
 | DCD | 5 | D1 | MAX3237 |
+| DTR (Eingang) | 0 | D3 | MAX3237 |
 | TXEN | 14 | D5 | OR-Gatter (Boot-Müll maskieren) |
 | RI | 12 | D6 | MAX3237 + LED |
 | RTS (Eingang) | 13 | D7 | MAX3237 |
@@ -92,7 +92,7 @@ RetroWiFiModem.h      — Konstanten, Pin-Definitionen
 globals.h             — Globale Variablen, Einstellungsstruktur
 support.h             — Hilfsfunktionen, Telnet, Verbindungslogik
 at_basic.h            — Standard-AT-Befehle
-at_extended.h         — Erweiterte AT-Befehle (&F, &K, &W, …)
+at_extended.h         — Erweiterte AT-Befehle (&D, &F, &K, &W, …)
 at_proprietary.h      — Proprietäre AT-Befehle (AT$…)
 ```
 
@@ -105,6 +105,7 @@ Für die Turnkey-Platine mit Wemos D1 mini. In der Arduino IDE den Sketch-Ordner
 1. Board: *LOLIN(WEMOS) D1 R2 & mini*
 2. ESP8266 Core **3.1.2** oder neuer (`https://arduino.esp8266.com/stable/package_esp8266com_index.json`)
 3. Bibliothek [ESP_EEPROM](https://github.com/jwrw/ESP_EEPROM) in der aktuellen Version (ab 2.2.0)
+4. `eeprom_storage.h` — lazy EEPROM-Init in `setup()` (kein separates Installieren nötig)
 
 Die Firmware initialisiert EEPROM erst in `setup()` mit dem korrekten Flash-Sektor (`EEPROM_start`). Damit funktioniert `AT&W` auch mit ESP_EEPROM 2.2.x und aktuellem ESP8266-Core — die ältere Pinning-Version 2.1.2 ist nicht mehr nötig.
 
@@ -116,7 +117,7 @@ Board und Port wählen, kompilieren und flashen.
 
 Nur Software — **kein Board in diesem Repository**. Eigene Hardware mit RS-232-Pegelwandler (z. B. MAX3237) und passender GPIO-Verdrahtung erforderlich.
 
-Die Standard-Pinbelegung in `firmware/esp32/RetroWiFiModem/RetroWiFiModem.h` entspricht der ESP8266-Platine (siehe Tabelle oben). Bei abweichender Verdrahtung die `#define`-Zeilen für CTS, RTS, RI, DSR, DCD und TXEN anpassen.
+Die Standard-Pinbelegung in `firmware/esp32/RetroWiFiModem/RetroWiFiModem.h` entspricht der ESP8266-Platine (siehe Tabelle oben, inkl. DTR an GPIO0). Bei abweichender Verdrahtung die `#define`-Zeilen für CTS, RTS, RI, DSR, DCD, DTR und TXEN anpassen.
 
 **Arduino IDE — Voraussetzungen:**
 
@@ -154,8 +155,9 @@ ATDT192.168.1.10:6400         ; IP mit Port
 | `AT$SU=dps` | Datenbits, Parität, Stoppbits (z. B. `8N1`) |
 | `ATNETn` | Telnet: 0=aus, 1=echt, 2=fake |
 | `AT&K1` | Hardware-Flowcontrol (RTS/CTS) |
+| `AT&Dn` | DTR-Verhalten: 0=ignorieren, 1=Offline, 2=auflegen, 3=Reset |
 | `AT$SP=n` | TCP-Server-Port für eingehende Verbindungen |
-| `AT$MDNS=name` | mDNS-Name (Standard: `espmodem`) |
+| `AT$MDNS=name` | mDNS-Name (Standard: `espmodem` / `esp32modem`) |
 | `AT&Z0=host:port,alias` | Kurzwahl speichern |
 
 Vollständige Hilfe auf dem Gerät: `AT?`
@@ -166,15 +168,17 @@ Mehrere Befehle pro Zeile möglich (`AT S0=1 Q0 V1`). String-Argumente (`AT$SSID
 
 **Verbindung:** `ATDT[+=-]host[:port]`, `ATDSn`, `ATA`, `ATH`, `ATO`, `+++` (Escape)
 
-**WLAN:** `ATC0`/`ATC1`, `ATI`, `ATGEThttp://…`, `ATRD`/`ATRT`
+**WLAN:** `ATC0`/`ATC1`, `ATI`, `ATGEThttp://…`, `ATRD`/`ATRT` (UTC über NTP, `pool.ntp.org`)
 
-**Konfiguration:** `AT&W`, `AT&F`, `AT&V0`/`AT&V1`, `AT&Zn=…`, `AT$SSID=`, `AT$PASS=`, `AT$AE=`, `AT$BM=`, `AT$R=`, `ATZ`
+**Konfiguration:** `AT&W`, `AT&F`, `AT&V0`/`AT&V1`, `AT&Zn=…`, `AT$SSID=`, `AT$PASS=`, `AT$AE=`, `AT$BM=`, `AT&R=`, `ATZ`
 
-**Verhalten:** `ATE0`/`ATE1`, `ATQ0`/`ATQ1`, `ATV0`/`ATV1`, `ATX0`/`ATX1`, `ATS0=n`, `ATS2=n`
+**Verhalten:** `ATE0`/`ATE1`, `ATQ0`/`ATQ1`, `ATV0`/`ATV1`, `ATX0`/`ATX1`, `ATS0=n`, `ATS2=n`, `AT&D0`–`AT&D3`
 
 ## OTA-Updates
 
 Bei aktiver WLAN-Verbindung: Arduino IDE → Sketch → Upload Using Network Address.
+
+> Nach einem Firmware-Update mit neuen EEPROM-Feldern (z. B. `dtrHandling`) einmal `AT&W` oder `AT&F` ausführen, damit die NVRAM-Struktur passt.
 
 ## Bekannte Einschränkungen
 
